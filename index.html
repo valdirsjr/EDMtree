@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Árvore da Música Eletrônica</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background:#080810; color:#e0e0e0; font-family:'Segoe UI',sans-serif; overflow:hidden; height:100vh; display:flex; flex-direction:column; }
+#header { text-align:center; padding:10px 16px 4px; flex-shrink:0; }
+#header h1 { font-size:1.15rem; letter-spacing:3px; color:#00ffe7; text-shadow:0 0 18px #00ffe766; text-transform:uppercase; }
+#header p { font-size:0.65rem; color:#444; margin-top:2px; letter-spacing:1px; }
+#tabs { display:flex; justify-content:center; gap:4px; padding:5px 12px 0; flex-shrink:0; }
+#controls { display:flex; flex-wrap:wrap; gap:5px; justify-content:center; padding:5px 12px 4px; flex-shrink:0; background:#0e0e18; border-bottom:1px solid #14142a; }
+.filter-btn { padding:3px 10px; border-radius:20px; border:1px solid #222; background:transparent; color:#666; font-size:0.63rem; cursor:pointer; letter-spacing:0.8px; text-transform:uppercase; transition:all 0.2s; }
+.filter-btn:hover,.filter-btn.active { border-color:var(--c,#00ffe7); color:var(--c,#00ffe7); background:var(--c,#00ffe7)11; }
+#hint { text-align:center; font-size:0.6rem; color:#1e1e2a; padding:2px 0; flex-shrink:0; }
+#view-tree { flex:1; overflow:hidden; display:block; position:relative; }
+#zoom-controls { position:absolute; bottom:16px; left:16px; display:flex; flex-direction:column; gap:4px; z-index:50; }
+.zoom-btn { width:32px; height:32px; background:#141428; border:1px solid #2a2a44; color:#aaa; font-size:1.1rem; cursor:pointer; border-radius:4px; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
+.zoom-btn:hover { background:#1e1e38; color:#00ffe7; border-color:#00ffe744; }
+#reset-btn { position:absolute; bottom:16px; left:56px; padding:0 10px; height:32px; background:#141428; border:1px solid #2a2a44; color:#888; font-size:0.62rem; cursor:pointer; border-radius:4px; letter-spacing:1px; text-transform:uppercase; transition:all 0.15s; z-index:50; }
+#reset-btn:hover { color:#00ffe7; border-color:#00ffe744; }
+#infl-toggle { position:absolute; bottom:16px; right:16px; z-index:50; padding:0 14px; height:32px; background:#141428; border:1px solid #2a2a44; color:#888; font-size:0.62rem; cursor:pointer; border-radius:4px; letter-spacing:1px; text-transform:uppercase; transition:all 0.15s; }
+#infl-toggle.on { color:#ff9f43; border-color:#ff9f4355; background:#ff9f4311; }
+svg { display:block; width:100%; height:100%; }
+#panel { position:fixed; right:0; top:0; bottom:0; width:310px; background:#0c0c1a; border-left:1px solid #1a1a2a; padding:18px 16px; transform:translateX(100%); transition:transform 0.28s ease; overflow-y:auto; z-index:300; }
+#panel.open { transform:translateX(0); }
+#panel-close { position:absolute; top:10px; right:12px; background:none; border:none; color:#444; font-size:1.2rem; cursor:pointer; }
+#panel-close:hover { color:#fff; }
+#panel h2 { font-size:1rem; margin-right:22px; margin-bottom:2px; }
+.era { font-size:0.65rem; color:#555; letter-spacing:2px; text-transform:uppercase; margin-bottom:10px; }
+.st { font-size:0.59rem; text-transform:uppercase; letter-spacing:2px; color:#3a3a4a; margin:10px 0 4px; border-bottom:1px solid #14142a; padding-bottom:2px; }
+.tag-list { display:flex; flex-wrap:wrap; gap:3px; }
+.tag { background:#12122a; border:1px solid #222238; border-radius:3px; padding:2px 6px; font-size:0.67rem; color:#aaa; }
+.bpm-bar { height:4px; background:#12122a; border-radius:2px; margin-top:4px; overflow:hidden; }
+.bpm-fill { height:100%; border-radius:2px; }
+.bpm-label { font-size:0.68rem; color:#777; margin-top:3px; }
+.txt { font-size:0.73rem; line-height:1.65; color:#aaa; }
+.desc { font-size:0.73rem; line-height:1.65; color:#777; }
+
+#search-bar {
+  display:flex; align-items:center; gap:8px;
+  padding:5px 16px 5px; flex-shrink:0;
+  background:#0a0a14; border-bottom:1px solid #14142a;
+}
+#search-input {
+  flex:1; max-width:340px;
+  background:#111122; border:1px solid #2a2a44;
+  border-radius:6px; padding:6px 12px;
+  color:#e0e0e0; font-size:0.82rem; outline:none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+#search-input:focus { border-color:#00ffe766; box-shadow:0 0 8px #00ffe722; }
+#search-input::placeholder { color:#444; }
+#search-btn {
+  padding:6px 14px; background:#141428; border:1px solid #2a2a44;
+  border-radius:6px; color:#aaa; font-size:0.72rem; cursor:pointer;
+  letter-spacing:1px; text-transform:uppercase; transition:all 0.2s; white-space:nowrap;
+}
+#search-btn:hover { border-color:#00ffe755; color:#00ffe7; }
+#search-clear {
+  padding:6px 10px; background:transparent; border:1px solid #1e1e30;
+  border-radius:6px; color:#555; font-size:0.72rem; cursor:pointer;
+  transition:all 0.2s; display:none;
+}
+#search-clear:hover { color:#ff6b6b; border-color:#ff6b6b55; }
+#search-results {
+  font-size:0.72rem; color:#555; white-space:nowrap;
+  letter-spacing:0.5px;
+}
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>🎛 Árvore da Música Eletrônica</h1>
+  <p>+60 gêneros · zoom/pan · linha do tempo · influências cruzadas</p>
+</div>
+<div id="controls">
+  <button class="filter-btn active" style="--c:#00ffe7" onclick="ff('all',this)">Todos</button>
+  <button class="filter-btn" style="--c:#ff6eb4" onclick="ff('synth',this)">Synth/EBM</button>
+  <button class="filter-btn" style="--c:#ff4444" onclick="ff('techno',this)">Techno</button>
+  <button class="filter-btn" style="--c:#cc4444" onclick="ff('industrial',this)">Industrial</button>
+  <button class="filter-btn" style="--c:#ffd93d" onclick="ff('house',this)">House</button>
+  <button class="filter-btn" style="--c:#6bcfff" onclick="ff('ambient',this)">Ambient/IDM</button>
+  <button class="filter-btn" style="--c:#c77dff" onclick="ff('dnb',this)">D&B/Jungle</button>
+  <button class="filter-btn" style="--c:#ff9f43" onclick="ff('rave',this)">Rave/Big Beat</button>
+  <button class="filter-btn" style="--c:#2ed573" onclick="ff('trance',this)">Trance</button>
+  <button class="filter-btn" style="--c:#f78fb3" onclick="ff('pop',this)">Electropop</button>
+  <button class="filter-btn" style="--c:#00d2d3" onclick="ff('experimental',this)">Experimental</button>
+  <button class="filter-btn" style="--c:#ffa502" onclick="ff('bass',this)">Bass Music</button>
+</div>
+<div id="hint">scroll = zoom · drag = mover · clique nos nós para detalhes</div>
+<div id="search-bar">
+  <input id="search-input" type="text" placeholder="Buscar artista... ex: Daft Punk, Aphex Twin, Prodigy" autocomplete="off" oninput="searchArtist(this.value)" onkeydown="if(event.key==='Escape')clearSearch()"/>
+  <button id="search-btn" onclick="searchArtist(document.getElementById('search-input').value)">Buscar</button>
+  <button id="search-clear" onclick="clearSearch()">✕ Limpar</button>
+  <span id="search-results"></span>
+</div>
+<div id="view-tree">
+  <svg id="tree-svg"></svg>
+  <div id="zoom-controls">
+    <button class="zoom-btn" onclick="doZoom(1.3)">+</button>
+    <button class="zoom-btn" onclick="doZoom(0.77)">−</button>
+  </div>
+  <button id="reset-btn" onclick="resetZoom()">Reset View</button>
+  <button id="infl-toggle" onclick="toggleInfluences()">⚡ Influências Cruzadas</button>
+</div>
+<div id="panel">
+  <button id="panel-close" onclick="closePanel()">✕</button>
+  <h2 id="p-name"></h2>
+  <div class="era" id="p-era"></div>
+  <div class="st">Descrição</div><div class="desc" id="p-desc"></div>
+  <div class="st">BPM Típico</div>
+  <div class="bpm-label" id="p-bpm-label"></div>
+  <div class="bpm-bar"><div class="bpm-fill" id="p-bpm-fill"></div></div>
+  <div class="st">Características Técnicas</div><div class="tag-list" id="p-tags"></div>
+  <div class="st">Artistas / Bandas Chave</div><div class="txt" id="p-artists"></div>
+  <div class="st">Influências Recebidas</div><div class="txt" id="p-infl"></div>
+  <div class="st">Influenciou</div><div class="txt" id="p-inflout"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+
+const G={
+"Musique Concrète":{f:"experimental",c:"#00cccc",e:"1948–presente",yr:1948,d:"Pierre Schaeffer em Paris, 1948. Sons do mundo real gravados e manipulados. A origem de tudo eletrônico.",b:[0,999],ch:["Sons concretos gravados","Collage sonora","Manipulação de fita"],a:"Pierre Schaeffer, Pierre Henry, Luc Ferrari, Bernard Parmegiani",i:"Avant-garde, Dadaísmo",o:"Ambient, Industrial, Noise, toda música eletrônica"},
+"Krautrock":{f:"experimental",c:"#00aaaa",e:"1968–1979",yr:1968,d:"Rock experimental alemão. Repetição hipnótica motorik, síntese eletrônica. Influência fundamental.",b:[80,130],ch:["Ritmo motorik","Síntese eletrônica","Improvisação"],a:"Kraftwerk, Can, Neu!, Cluster, Tangerine Dream, Klaus Schulze, Faust",i:"Rock psicodélico, Jazz livre",o:"Synth/EBM, Techno, Ambient"},
+"Synth/EBM":{f:"synth",c:"#ff6eb4",e:"1970–1985",yr:1974,d:"Raízes da música eletrônica moderna. Síntese analógica, sequenciadores e batidas rígidas.",b:[95,145],ch:["Síntese analógica","Sequenciador","4/4 rígido","Arpejador"],a:"Kraftwerk, Gary Numan, Depeche Mode, New Order, Front 242, DAF, Nitzer Ebb, Ultravox, OMD, Human League, Skinny Puppy, KMFDM, Covenant, Wumpscut, Suicide, Clock DVA, Portion Control",i:"Rock progressivo, Música concreta, Disco, Krautrock",o:"Techno, House, Industrial, Trance, Synthpop"},
+"Synthpop":{f:"synth",c:"#ff9fcc",e:"1978–presente",yr:1978,d:"Pop com sintetizadores. Melodias cativantes, batidas eletrônicas. De Kraftwerk ao mainstream dos anos 80.",b:[100,135],ch:["Lead synth","Bateria eletrônica","Voz pop","Refrão memorável"],a:"Depeche Mode, Pet Shop Boys, Erasure, Yazoo, Soft Cell, Alphaville, a-ha, Tears for Fears, Ladytron, M83, CHVRCHES, Grimes, Fever Ray, New Order, Orchestral Manoeuvres in the Dark, Visage, Ultravox, Marsheaux, Trentemøller, Austra",i:"Synth/EBM, New Wave, Disco",o:"Electropop, Futurepop, Indie Electronic"},
+"New Wave":{f:"synth",c:"#ff8ed4",e:"1978–1990",yr:1978,d:"Fusão de punk com sintetizadores. Sons frios, líricos melancólicos. Dominou a MTV nos anos 80.",b:[100,132],ch:["Synth lead","Guitarra angular","Voz melódica"],a:"Joy Division, The Cure, Siouxsie, Bauhaus, Echo & the Bunnymen, Talking Heads, Devo",i:"Punk, Krautrock, Synth/EBM",o:"Darkwave, Goth Rock"},
+"Darkwave":{f:"synth",c:"#d460b0",e:"1982–presente",yr:1982,d:"Atmosfera sombria, letras existenciais, síntese densa. Herdeiro gótico do EBM.",b:[88,132],ch:["Pad atmosférico","Bateria lenta","Voz etérea","Reverb profundo"],a:"Clan of Xymox, Lycia, Faith and the Muse, Deine Lakaien, Dead Can Dance, Cocteau Twins, This Mortal Coil, Cranes, Black Tape for a Blue Girl, Switchblade Symphony, Love Spirals Downwards, Unto Ashes, Autumn",i:"New Wave, Synth/EBM, Post-punk",o:"Futurepop, Witch House"},
+"Futurepop":{f:"synth",c:"#cc50a0",e:"1998–2010",yr:1998,d:"EBM + Synthpop com influências de Trance. Melodias épicas, letras melancólicas.",b:[135,148],ch:["Melodia trance","Beat EBM","Voz melancólica","Supersaw"],a:"VNV Nation, Covenant, Apoptygma Berzerk, Wolfsheim, Assemblage 23",i:"EBM, Synthpop, Trance",o:"Aggrotech"},
+"Italo Disco":{f:"synth",c:"#ff70e0",e:"1977–1989",yr:1977,d:"Disco eletrônico italiano. Batidas robóticas, sintetizadores exuberantes. Influência enorme no house.",b:[116,132],ch:["Sintetizador exuberante","Bateria rígida","Voz pitchada","Bassline disco"],a:"Giorgio Moroder, Patrick Cowley, Cerrone, Baltimora, Den Harrow, Bobby O, Ryan Paris",i:"Disco, Krautrock, Funk",o:"Eurodance, House, Nu-Italo"},
+"Witch House":{f:"synth",c:"#7744aa",e:"2009–2014",yr:2009,d:"Estética sombria occult lo-fi. Samples de hip-hop ralentados, atmosfera de pesadelo.",b:[60,100],ch:["Pitch shift descendente","Estética occult","Lo-fi"],a:"oOoOO, Balam Acab, Salem, White Ring, Ritualz",i:"Darkwave, Hip-hop, R&B",o:"Drag, Cloud Rap"},
+"Industrial":{f:"industrial",c:"#cc4444",e:"1976–presente",yr:1976,d:"Ruído como arte. Batidas agressivas, samples perturbadores, rejeição ao convencional.",b:[75,165],ch:["Ruído industrial","Distorção extrema","Feedback","Samples perturbadores"],a:"Throbbing Gristle, SPK, Einstürzende Neubauten, Cabaret Voltaire, Test Dept, Coil, NON, Psychic TV, Nurse With Wound, Current 93, Death in June, Controlled Bleeding, Laibach, Der Blutharsch",i:"Música concreta, Noise, Punk",o:"EBM, Aggrotech, Industrial Metal, Power Electronics"},
+"Aggrotech":{f:"industrial",c:"#aa2222",e:"1998–presente",yr:1998,d:"Industrial + EBM máximo. Voz rasgada, Dark Electro europeu.",b:[132,162],ch:["Synth distorcido","Voz rasgada","4/4 duro"],a:"Combichrist, Suicide Commando, Hocico, Nachtmahr, Grendel, Wumpscut",i:"EBM, Industrial, Techno",o:"Hellektro"},
+"Industrial Metal":{f:"industrial",c:"#882222",e:"1988–presente",yr:1988,d:"Fusão de metal com industrial. Riffs pesados sobre bateria programada.",b:[100,162],ch:["Guitarra pesada","Bateria eletrônica+acústica","Voz agressiva"],a:"Nine Inch Nails, Ministry, Rammstein, KMFDM, Marilyn Manson, Fear Factory, Godflesh",i:"Heavy Metal, Industrial, EBM",o:"Nu-metal"},
+"Power Electronics":{f:"industrial",c:"#771111",e:"1980–presente",yr:1980,d:"Ruído puro, frequências extremas, provocação radical.",b:[0,999],ch:["Feedback extremo","Síntese de ruído","Sem estrutura"],a:"Whitehouse, Ramleh, Sutcliffe Jügend, Prurient",i:"Industrial, Noise Art",o:"Noise, Harsh Noise Wall"},
+"Noise":{f:"industrial",c:"#993333",e:"1975–presente",yr:1975,d:"Som como textura pura. Japanoise. O limite entre música e ausência de música.",b:[0,999],ch:["Feedback","Distorção máxima","Textura pura"],a:"Merzbow, Masami Akita, Boredoms, Naked City, Wolf Eyes, Lightning Bolt",i:"Free Jazz, Industrial, Avant-garde",o:"Harsh Noise, Drone"},
+"Electro":{f:"techno",c:"#ff8800",e:"1982–presente",yr:1982,d:"Drum machine e sintetizadores sobre influência funk. TR-808 icônico. Precursor do Techno de Detroit.",b:[100,130],ch:["TR-808","Bassline robótica","Voz vocoder"],a:"Afrika Bambaataa, Kraftwerk, Man Parrish, Egyptian Lover, Hashim, Drexciya, DMX Krew, Juan Atkins (Model 500), Claude Young, Adult., Aux 88, DJ Stingray, Legowelt, Dopplereffekt",i:"Funk, Hip-hop, Synth/EBM",o:"House, Detroit Techno, Miami Bass"},
+"Techno":{f:"techno",c:"#ff4444",e:"1985–presente",yr:1985,d:"Nasceu em Detroit. Repetição hipnótica, TR-909, groove mecânico. Afrofuturismo eletrônico.",b:[130,150],ch:["TR-909","Loop repetitivo","Kick pesado","Groove mecânico"],a:"Juan Atkins, Derrick May, Kevin Saunderson, Jeff Mills, Robert Hood, Plastikman, Carl Craig, Underground Resistance, Blake Baxter, Eddie Fowlkes, Mike Banks, Surgeon, Truncate, Alignement, Function",i:"Synth/EBM, Kraftwerk, Funk de Chicago",o:"Gabber, Acid Techno, Minimal Techno, Dark Techno"},
+"Dark Techno":{f:"techno",c:"#cc2222",e:"1993–presente",yr:1993,d:"Techno denso, sombrio e atmosférico. Influência industrial, pads sinistros, kick brutal.",b:[133,148],ch:["Kick pesado","Pad sinistro","Atmosfera industrial"],a:"Surgeon, Regis, Ancient Methods, Rebekah, Paula Temple, Blawan, Truss, Orphx, Charlotte de Witte, Amelie Lens, Alignment, SPFDJ, Reinier Zonneveld, I Hate Models, Dax J, Alignment, Enrico Sangiuliano",i:"Techno, Industrial, EBM",o:"Hardcoretek"},
+"Acid Techno":{f:"techno",c:"#ff6644",e:"1987–presente",yr:1987,d:"O Roland TB-303 como protagonista. Linha de baixo retorcida e hipnótica.",b:[130,148],ch:["TB-303","Cutoff filter modulado","Resonância alta"],a:"Plastikman, Luke Slater, DJ Pierre, Hardfloor, Adam X, Chris Liberator",i:"Techno, Acid House",o:"Acid Trance, Psytrance"},
+"Minimal Techno":{f:"techno",c:"#dd3333",e:"1995–presente",yr:1995,d:"Menos é mais. Kick seco, texturas sutis, evolução lenta. O Berghain em forma de som.",b:[128,135],ch:["Kick seco","Micro-samples","Evolução lenta","Espaço como elemento"],a:"Ricardo Villalobos, Richie Hawtin, Robert Hood, Surgeon, Zip, Efdemin, Mathew Jonson, Speedy J, Ambivalent, Portable, Luciano, Joris Voorn, Drumcode artists, Marco Carola",i:"Techno de Detroit, Dub",o:"Microhouse, Tech House"},
+"Dub Techno":{f:"techno",c:"#ff7766",e:"1993–presente",yr:1993,d:"Techno com filosofia dub jamaicana. Delays profundos, reverb imenso. Basic Channel em Berlim.",b:[120,136],ch:["Delay profundo","Reverb imenso","Pad dub"],a:"Basic Channel, Rhythm & Sound, Chain Reaction, DeepChord, Echospace, Intrusion",i:"Techno, Dub jamaicano",o:"Minimal Techno"},
+"Gabber":{f:"techno",c:"#cc0000",e:"1990–presente",yr:1990,d:"Techno extremo holandês. Kicks distorcidos, BPM altíssimo. Cultura underground de Rotterdam.",b:[160,220],ch:["Kick distorcido","BPM extremo","Pitch shift descendente","Saturação total"],a:"DJ Rotterdam, Angerfist, Lenny Dee, Scott Brown, Darkraver, DJ Paul Elstak, Neophyte, Headhunterz (early), Tha Playah, Partyraiser, Miss K8, Destructive Tendencies, Ophidian, Dione",i:"Hardcore Rave, Techno",o:"Terrorcore, Speedcore, Hardstyle"},
+"Hardstyle":{f:"techno",c:"#ee2222",e:"2000–presente",yr:2000,d:"Fusão de Hardcore com Trance. Kick reverso icônico, melodias épicas. Defqon.1.",b:[140,160],ch:["Kick reverso","Melodia épica","Pitch negativo","Build-up dramático"],a:"Headhunterz, Showtek, Brennan Heart, Zatox, Da Tweekaz, Wildstylez",i:"Gabber, Trance, Hard Trance",o:"Rawstyle, Euphoric Hardstyle"},
+"Rawstyle":{f:"techno",c:"#bb1111",e:"2010–presente",yr:2010,d:"Hardstyle mais sombrio e agressivo. Menos euforia, mais peso.",b:[148,158],ch:["Kick pesado distorcido","Atmosfera dark","Screeches"],a:"Radical Redemption, Warface, Rebelion, Miss K8, Crypsis",i:"Hardstyle, Gabber",o:"Industrial Hardstyle"},
+"Speedcore":{f:"techno",c:"#aa0000",e:"1992–presente",yr:1992,d:"Techno/Hardcore ao extremo de velocidade. BPM acima de 300.",b:[300,1000],ch:["BPM extremo","Kick distorcido","Ruído total"],a:"Rotator, Passenger of Shit, The Speed Freak",i:"Gabber, Hardcore, Noise",o:"Extratone"},
+"House":{f:"house",c:"#ffd93d",e:"1983–presente",yr:1983,d:"Nasceu em Chicago no Warehouse. Herdeiro da disco music. Quatro na pista, alma gospel, groove infinito.",b:[120,130],ch:["4/4 na bumbo","Hi-hat off-beat","Bassline groovy","Piano/organ","Voz soul"],a:"Frankie Knuckles, Larry Heard, Marshall Jefferson, Larry Levan, Ron Hardy, Jesse Saunders, Jamie Principle, Ten City, DJ International artists, Fingers Inc., Farley Jackmaster Funk",i:"Disco, Soul, Gospel, Funk",o:"Deep House, Tech House, UK Garage, Acid House"},
+"Deep House":{f:"house",c:"#f0c030",e:"1986–presente",yr:1986,d:"House introspectivo. Harmonias jazzy, voz suave, atmosfera noturna. Larry Heard definiu o gênero.",b:[114,125],ch:["Chord pads jazzy","Bassline suave","Voz soul","Piano rhodes"],a:"Larry Heard, Kerri Chandler, Frankie Knuckles, Moodymann, Theo Parrish, Floating Points, Burial, Kaytranada, Henrik Schwarz, Dixon, Soul Clap, Maya Jane Coles, Solomun, Nora En Pure, Joris Voorn, Âme",i:"House, Jazz, Soul, Funk",o:"Future House, Afro House"},
+"Afro House":{f:"house",c:"#d4a020",e:"2010–presente",yr:2010,d:"House com raízes africanas. Percussão tribal, vocais africanos. Nasceu na África do Sul.",b:[118,128],ch:["Percussão tribal","Vocal africano","Bassline hipnótica"],a:"Black Coffee, Enoo Napa, Themba, Culoe De Song, Da Capo, Kabza De Small, DJ Maphorisa, Themba, Blanka Mazimela, Dj Clock, Louie Vega, Masters At Work, Hyenah, Argy, Bedouin",i:"Deep House, Afro Beat, Soulful House",o:"Afro Tech"},
+"Tech House":{f:"house",c:"#e0b020",e:"1995–presente",yr:1995,d:"House com musculatura techno. Groove funk com percussão hipnótica.",b:[124,132],ch:["Percussão densa","Bassline techno","Loop hipnótico"],a:"Carl Cox, Green Velvet, Hot Since 82, Fisher, Chris Lake, Marco Carola, Adam Beyer, Richy Ahmed, Skrillex, Diplo, Nina Kraviz, Joseph Capriati, Dubfire, Nicole Moudaber, Paco Osuna, Pan-Pot",i:"House, Techno Minimal",o:"Micro House, Melodic House/Techno"},
+"Melodic House/Techno":{f:"house",c:"#aa7700",e:"2015–presente",yr:2015,d:"Fusão moderna de House progressivo com Techno. Melodias emotivas sobre beats techno.",b:[120,135],ch:["Melodia emocional","Beat techno","Pad atmosférico"],a:"Ame, Dixon, Bicep, Tale of Us, Marino Canal, Stephan Bodzin, Nora En Pure, Lane 8, Ben Böhmer, Adriatique, CamelPhat, Christian Löffler, Moderat, Kiasmos, Kölsch, Yotto, Maceo Plex",i:"Progressive House, Techno Minimal, IDM",o:"Afro Tech"},
+"Acid House":{f:"house",c:"#ffaa00",e:"1986–1990",yr:1986,d:"O TB-303 encontrou a pista de dança. Detonou a cultura rave no UK. Smiley face.",b:[118,130],ch:["TB-303 ácido","Smiley face","Repetição hipnótica"],a:"Phuture, DJ Pierre, Larry Heard, S-Express, 808 State, A Guy Called Gerald",i:"House de Chicago, TB-303",o:"Rave, Hardcore Rave"},
+"UK Garage":{f:"house",c:"#cc9900",e:"1993–presente",yr:1993,d:"House sincopado com sotaque britânico. Voz pitchada, groove 2-step. Precursor do Dubstep e Grime.",b:[125,140],ch:["Groove sincopado 2-step","Voz pitchada","Sub-bass"],a:"Craig David, MJ Cole, Todd Edwards, So Solid Crew, Artful Dodger, Zed Bias, El-B, Wookie, Oxide & Neutrino, Heartless Crew, Pay As U Go Cartel, Dizzee Rascal (early), Wiley (early), Mis-Teeq",i:"House, R&B, Jungle",o:"Grime, Dubstep"},
+"Progressive House":{f:"house",c:"#bb8800",e:"1992–presente",yr:1992,d:"House com estrutura longa e desenvolvimento gradual. Épico e cinematográfico.",b:[126,134],ch:["Build-up longo","Breakdown dramático","Melodia progressiva"],a:"Sasha, John Digweed, Leftfield, Underworld, Daft Punk, BT, Way Out West, Bedrock Records artists, Hernan Cattaneo, Nick Warren, Max Graham, Mat Zo, Above & Beyond",i:"House, Techno, Trance",o:"Trance Progressivo, EDM"},
+"French House":{f:"house",c:"#dd6699",e:"1994–2002",yr:1994,d:"House filtrado com soul e funk da França. Filter house, vocais grooving. Daft Punk definiram.",b:[120,128],ch:["Filter disco","Vocoder","Groove funk"],a:"Daft Punk, Cassius, Basement Jaxx, Alan Braxe, Bob Sinclar, St. Germain, Stardust, Kavinsky, Justice, SebastiAn, Boys Noize, Crydamoure Records artists, Roulé Records artists",i:"Disco, Funk, House, Italo Disco",o:"Nu-Disco"},
+"Eurodance":{f:"pop",c:"#ff55cc",e:"1989–2000",yr:1989,d:"Dance pop europeu explosivo dos anos 90. Batida eletrônica, refrão épico, voz feminina.",b:[128,145],ch:["Batida 4/4","Voz feminina potente","Rap masculino","Refrão épico"],a:"Ace of Base, Haddaway, Snap!, 2 Unlimited, Culture Beat, La Bouche, Aqua, Corona",i:"Italo Disco, House, Hi-NRG",o:"Pop comercial, EDM"},
+"Electropop":{f:"pop",c:"#f78fb3",e:"2000–presente",yr:2000,d:"Synthpop modernizado. Pop com produção eletrônica contemporânea.",b:[115,132],ch:["Voz pop polida","Synth brilhante","Hook memorável"],a:"La Roux, Little Boots, Ellie Goulding, Robyn, Zara Larsson, Carly Rae Jepsen",i:"Synthpop, New Wave, House",o:"Indie Pop, Dance Pop"},
+"Nu-Disco":{f:"pop",c:"#ee77aa",e:"2006–presente",yr:2006,d:"Revivalismo da disco music com produção moderna. Guitarra funk, baixo grooving.",b:[116,124],ch:["Guitarra funk","Baixo disco","Hi-hat aberto"],a:"Nile Rodgers, Daft Punk, Todd Terje, Flight Facilities, Classixx, Miami Horror",i:"Disco, Funk, House, Italo Disco",o:"Funky House"},
+"EDM":{f:"pop",c:"#ff4488",e:"2010–presente",yr:2010,d:"Electronic Dance Music mainstream. Drops explosivos, superstars globais, festival culture.",b:[126,140],ch:["Drop explosivo","Build-up previsível","Riser","Voz pop"],a:"Avicii, David Guetta, Calvin Harris, Swedish House Mafia, Martin Garrix, Zedd, Deadmau5",i:"Progressive House, Trance, Electro House",o:"Tropical House, Future Bass"},
+"Trance":{f:"trance",c:"#2ed573",e:"1990–presente",yr:1990,d:"Melodias eufóricas, build-ups épicos, breakdowns emocionais. Nasceu na Alemanha.",b:[128,145],ch:["Melodia emotiva","Build-up/breakdown","Arpegiador","Supersaw"],a:"Paul van Dyk, ATB, Ferry Corsten, Tiesto, Above & Beyond, Armin van Buuren, BT, Robert Miles, Chicane, Solarstone, Andy Moor, Sean Tyas, Gareth Emery, Emma Hewitt, Markus Schulz, Rank 1, Blank & Jones",i:"House, Techno, EBM",o:"Psytrance, Hardstyle, EDM, Uplifting Trance"},
+"Uplifting Trance":{f:"trance",c:"#33dd77",e:"1995–presente",yr:1995,d:"O lado mais emocional e épico do trance. Antems de festival.",b:[136,142],ch:["Melodia épica","Voz feminina etérea","Breakdown emocional","Supersaw wall"],a:"Armin van Buuren, Tiesto, ATB, Rank 1, Ferry Corsten, Cosmic Gate, Aly & Fila, Dash Berlin, Push, Andrew Rayel, Simon Patterson, Susana, Solarstone, Omnia, Factor B, Johan Gielen",i:"Progressive House, Trance",o:"EDM, Big Room House"},
+"Goa Trance":{f:"trance",c:"#00aa44",e:"1989–1997",yr:1989,d:"Precursor do Psytrance. Nasceu nas praias de Goa. Cultura hippie e psicodélica oriental.",b:[135,145],ch:["Melodia espiral","Samples orientais","Atmosfera mística"],a:"Juno Reactor, Man With No Name, Doof, Astral Projection, Total Eclipse, Eat Static",i:"Acid House, New Age, Musica indiana",o:"Psytrance, Full-on"},
+"Psytrance":{f:"trance",c:"#00cc55",e:"1994–presente",yr:1994,d:"Trance psicodélico global. Kicks acelerados, texturas alienígenas, cultura hippie-rave.",b:[138,148],ch:["Kick acelerado","Textura alienígena","Arpejo rápido","Bassline 16th"],a:"Infected Mushroom, Shpongle, Astral Projection, Hallucinogen, Skazi, Talamasca, 1200 Micrograms, Vini Vici, Ace Ventura, Day Din, Neelix, Faders, Captain Hook, Tristan, Liquid Soul, Audiomatic, Symbolic",i:"Goa Trance, Acid Techno",o:"Dark Psy, Full-on, Psybient"},
+"Dark Psy":{f:"trance",c:"#008833",e:"1999–presente",yr:1999,d:"Psytrance sombrio. Sem euforia, apenas peso, pressão e alienação.",b:[148,170],ch:["BPM acelerado","Texturas sombrias","Samples perturbadores"],a:"Xenomorph, Panic Movement, Derango, Megalopsy, Shift",i:"Psytrance, Dark Techno",o:"Hi-Tech"},
+"Psybient":{f:"trance",c:"#00bb66",e:"1995–presente",yr:1995,d:"Psytrance encontra o Ambient. Viagem psicodélica introspectiva.",b:[60,100],ch:["Texturas psicodélicas","Pad etéreo","Samples da natureza"],a:"Shpongle, Carbon Based Lifeforms, Entheogenic, Sync24, Ott, Hilight Tribe",i:"Psytrance, Ambient",o:"Psydowntempo"},
+"Ambient":{f:"ambient",c:"#6bcfff",e:"1978–presente",yr:1978,d:"Brian Eno em 1978: música que pode ser ouvida ou ignorada. Texturas, paisagens sonoras.",b:[0,80],ch:["Sem ritmo fixo","Pad longo","Reverb extremo","Drone"],a:"Brian Eno, Harold Budd, The Orb, Aphex Twin, Stars of the Lid, William Basinski, Biosphere, Gas, Grouper, Tim Hecker, Nils Frahm, Max Richter, Johann Johannsson, Ólafur Arnalds, Moby, Hammock, Hiroshi Yoshimura",i:"Música concreta, Krautrock, Minimalismo erudito",o:"IDM, Drone, Chillout, Dark Ambient"},
+"IDM":{f:"ambient",c:"#55bbff",e:"1991–presente",yr:1991,d:"Intelligent Dance Music. Ritmos quebrados, texturas complexas. Warp Records.",b:[75,165],ch:["Ritmo fragmentado","Glitch","Sintese granular","Textura emocional"],a:"Aphex Twin, Autechre, Boards of Canada, µ-Ziq, Squarepusher, Plaid, Luke Vibert, Venetian Snares, Four Tet, Burial, Actress, Andy Stott, James Blake, Rustie, Clark, Chris Clark, Bibio, Floating Points",i:"Ambient, Techno, Jungle, Musique concrete",o:"Glitch, Post-digital"},
+"Glitch":{f:"ambient",c:"#44aaee",e:"1994–presente",yr:1994,d:"O erro como estética. Artefatos digitais, clicks, stutters viram música.",b:[65,130],ch:["Artefatos digitais","Stutters","Clicks e pops"],a:"Oval, Ryoji Ikeda, Alva Noto, Kim Cascone, Matmos, Fennesz",i:"IDM, Noise, Musique concrete",o:"Microsound, Post-digital"},
+"Dark Ambient":{f:"ambient",c:"#336699",e:"1980–presente",yr:1980,d:"Paisagens sonoras sombrias, atmosferas perturbadoras. Cinema interior.",b:[0,60],ch:["Drone sinistro","Field recordings","Pad sombrio"],a:"Lustmord, Coil, Atrium Carceri, Raison detre, Herbst9, Desiderii Marginis",i:"Industrial, Ambient, Noise",o:"Dungeon Synth"},
+"Drone":{f:"ambient",c:"#2255aa",e:"1960–presente",yr:1960,d:"Música baseada em notas sustentadas. O tempo se dissolve.",b:[0,40],ch:["Nota sustentada","Sem ritmo","Overtones","Textura pura"],a:"La Monte Young, Sunn O))), Stars of the Lid, Earth, Grouper, Eliane Radigue, Tim Hecker",i:"Música erudita, Raga indiano",o:"Dark Ambient, Doom Metal"},
+"Chillout":{f:"ambient",c:"#7fd4ff",e:"1990–presente",yr:1990,d:"Música para desacelerar após a pista. Tempos lentos, atmosferas relaxantes.",b:[68,100],ch:["Tempo lento","Melodia suave","Pad quente","Jazz samples"],a:"The Orb, Moby, Air, Zero 7, Thievery Corporation, Bonobo, Massive Attack, Röyksopp, Café del Mar artists, Brian Eno, Kruder & Dorfmeister, Nightmares on Wax, Quantic, Funki Porcini, Lemon Jelly",i:"Ambient, Dub, Jazz, House",o:"Downtempo, Nu-Jazz"},
+"Trip-Hop":{f:"ambient",c:"#9b8ea0",e:"1991–2000",yr:1991,d:"O lado sombrio do hip-hop britânico. Tempos lentos, samples de jazz e soul. Bristol Sound.",b:[68,102],ch:["Breakbeat lento","Sample de jazz/soul","Voz etérea","Bass dub"],a:"Massive Attack, Portishead, Tricky, Morcheeba, Sneaker Pimps, DJ Shadow, Unkle, Lamb, Archive, Bonobo, Nightmares on Wax, Thievery Corporation, Zero 7, Telepopmusik, Hooverphonic, Röyksopp",i:"Hip-hop, Jazz, Dub, Soul",o:"Chillout, Downtempo"},
+"Downtempo":{f:"ambient",c:"#8888bb",e:"1993–presente",yr:1993,d:"Eletrônica em ritmo lento. Influências globais, world music, jazz.",b:[60,100],ch:["BPM lento","Texturas globais","Percussão orgânica"],a:"Bonobo, Amon Tobin, DJ Shadow, Blockhead, Nightmares on Wax, Tycho, Four Tet",i:"Trip-Hop, Jazz, World Music, Ambient",o:"Lo-fi Hip-hop"},
+"Vaporwave":{f:"experimental",c:"#cc88ff",e:"2010–presente",yr:2010,d:"Estética nostálgica dos 80s/90s. Samples de muzak pitchados para baixo. Internet art genre.",b:[60,90],ch:["Pitch shift descendente","Sample de muzak","Reverb excessivo"],a:"Macintosh Plus, Blank Banshee, Saint Pepsi, 2814, Death's Dynamic Shroud",i:"Smooth jazz, Muzak, Synthpop 80s",o:"Future Funk, Lo-fi Hip-hop"},
+"Lo-fi Hip-hop":{f:"experimental",c:"#aaaadd",e:"2010–presente",yr:2010,d:"Hip-hop degradado com estética analógica. Vinil crackle, samples de jazz. Música de estudo do YouTube.",b:[70,95],ch:["Vinil crackle","Sample de jazz","Beat simples"],a:"Nujabes, J Dilla (influência), ChilledCow artists, Idealism, Jinsang, Tomppabeats",i:"Hip-hop, Jazz, Trip-Hop, Vaporwave",o:"Bedroom Pop"},
+"Chiptune":{f:"experimental",c:"#00d2d3",e:"1980–presente",yr:1980,d:"Música feita com chips de videogames antigos. Game Boy, NES, Commodore 64.",b:[120,200],ch:["SID chip","Game Boy LSDJ","Onda quadrada","8-bit aesthetic"],a:"Anamanaguchi, Sabrepulse, Nullsleep, Bit Shifter, Chipzel, Danimal Cannon",i:"Video game music, New Wave, Punk",o:"Bitpop, Nintendocore"},
+"Modular/Experimental":{f:"experimental",c:"#009999",e:"1960–presente",yr:1960,d:"Síntese modular pura. Eurorack, Buchla, Moog. Exploração sonora sem gênero.",b:[0,999],ch:["Síntese modular","Patch aleatório","Generativo"],a:"Suzanne Ciani, Kaitlyn Aurelia Smith, Richard Devine, Alessandro Cortini, Floating Points",i:"Musique concrete, Minimalismo",o:"Ambient, IDM, Noise"},
+"Footwork/Juke":{f:"experimental",c:"#00bbbb",e:"2000–presente",yr:2000,d:"Ritmo caótico de Chicago. 160 BPM, samples vocais fragmentados, dança acrobática.",b:[155,165],ch:["160 BPM","Sample vocal fragmentado","Ritmo sincopado extremo"],a:"DJ Rashad, DJ Spinn, Traxman, RP Boo, Teklife crew, Jlin",i:"Chicago Ghetto House, Hip-hop, DnB",o:"Polyrhythmic electronic"},
+"Jungle":{f:"dnb",c:"#a060e0",e:"1991–1995",yr:1991,d:"Precursor do DnB. Samples de reggae sobre breakbeats acelerados. Som da diáspora britânica jamaicana.",b:[155,175],ch:["Amen break","Toastin reggae","Sample vocal","Breakbeat caótico"],a:"Shy FX, Rebel MC, Buju Banton, Ragga Twins, Goldie, 4 Hero, Grooverider, DJ Ron, Congo Natty, Ray Keith, Peshay, LTJ Bukem, Dillinja, Remarc, Potential Bad Boy, DJ Hype, Randall",i:"Reggae, Dancehall, Hardcore Rave, Hip-hop",o:"Drum & Bass, Grime"},
+"Drum & Bass":{f:"dnb",c:"#c77dff",e:"1992–presente",yr:1992,d:"Ritmos acelerados e quebrados sobre graves profundos. Do Jungle ao mainstream.",b:[160,180],ch:["Breakbeat acelerado","Sub-bass pesado","Snare sincopado","Amen break"],a:"Goldie, LTJ Bukem, Roni Size, Pendulum, Chase & Status, Andy C, Shy FX, Ed Rush & Optical, High Contrast, Bad Company, Photek, Metalheadz artists, Ram Records artists, Calibre, dBridge, Klute, Lenzman, Alix Perez, Noisia",i:"Jungle, Hardcore Rave, Reggae, Hip-hop",o:"Neurofunk, Liquid DnB, Jump Up, Halftime"},
+"Neurofunk":{f:"dnb",c:"#9955ee",e:"1996–presente",yr:1996,d:"DnB técnico e futurista. Basslines modulares, produção cirúrgica, atmosfera sci-fi.",b:[165,180],ch:["Bass modulado","Groove complexo","Atmosfera sci-fi"],a:"Optical, Ed Rush, Phace, Spor, Noisia, Mefjus, Black Sun Empire, Current Value",i:"Drum & Bass, Techno",o:"Techstep"},
+"Liquid DnB":{f:"dnb",c:"#bb88ff",e:"1995–presente",yr:1995,d:"O lado melódico e emocional do DnB. Atmosferas jazz e soul sobre breaks acelerados.",b:[160,175],ch:["Melodia jazz","Voz soul","Atmosfera suave"],a:"LTJ Bukem, Calibre, High Contrast, Nu:Tone, Logistics, Netsky, London Elektricity",i:"DnB, Jazz, Soul",o:"Melodic DnB"},
+"Jump Up":{f:"dnb",c:"#8844cc",e:"1997–presente",yr:1997,d:"DnB festivo e agressivo para o dancefloor. Wobble bass, hoovers.",b:[170,180],ch:["Wobble bass","Hoover synth","Drop agressivo"],a:"DJ Hazard, Deekline, Taxman, Turno, Dodge & Fuski",i:"DnB, Jungle",o:""},
+"Halftime":{f:"dnb",c:"#7733bb",e:"2010–presente",yr:2010,d:"DnB na metade do tempo. Groove pesado, influência hip-hop.",b:[160,175],ch:["Groove half-time","Sub-bass pesado","Hip-hop feel"],a:"Ivy Lab, Alix Perez, Skeptical, Bredren, Sorrow",i:"DnB, Hip-hop, Trap",o:""},
+"Hardcore Rave":{f:"rave",c:"#ee8822",e:"1990–1994",yr:1990,d:"A primeira explosão rave britânica. Kicks pesados, samples acelerados, raves ilegais.",b:[150,180],ch:["Kick pesado","Sample acelerado","Voz pitchada"],a:"SL2, Acen, 4 Hero, The Prodigy (early), Altern-8, Slipmatt, Ratpack, Urban Hype, Smart E's, Shades of Rhythm, Q-Bass, Mark N, Nebula II, Noise Factory, Suburban Base artists",i:"Acid House, Techno, Hip-hop",o:"Jungle, Gabber, Happy Hardcore, DnB"},
+"Rave/Big Beat":{f:"rave",c:"#ff9f43",e:"1992–2002",yr:1992,d:"A cena rave britânica no mainstream. The Prodigy sao o apice.",b:[128,160],ch:["Breakbeat pesado","Riff de guitarra sample","Kick agressivo"],a:"The Prodigy, Chemical Brothers, Fatboy Slim, Crystal Method, Utah Saints, Bentley Rhythm Ace, Lo Fidelity Allstars, Propellerheads, Basement Jaxx, Apollo 440, Leftfield, Underworld, Orbital, 808 State",i:"Acid House, Hip-hop, Rock, Hardcore Rave",o:"Electronic Rock, Crossover"},
+"Happy Hardcore":{f:"rave",c:"#ffbb44",e:"1992–presente",yr:1992,d:"Hardcore acelerado com melodias alegres e vozes pitchadas eufóricas.",b:[160,180],ch:["Voz pitchada high","Melodia feliz","Piano rave"],a:"Hixxy, Sy, Lisa Lashes, Scott Brown, Dougal, Brisk",i:"Hardcore Rave, Eurodance",o:"UK Hardcore, Donk"},
+"Breakbeat":{f:"rave",c:"#ee7711",e:"1988–presente",yr:1988,d:"Gênero baseado em breakbeats sincopados. Mais groove que o Techno.",b:[125,145],ch:["Breakbeat sincopado","Bassline funk","Sample de vinil"],a:"The Prodigy, Apollo 440, Freq Nasty, Meat Katie, Adam Freeland",i:"Hip-hop, Funk, Acid House",o:"Nu-Skool Breaks, Big Beat"},
+"Dubstep":{f:"bass",c:"#ddaa00",e:"2000–presente",yr:2000,d:"Sub-bass pesado, tempo half-step, nasceu no sul de Londres.",b:[138,142],ch:["Half-step groove","Sub-bass wobble","Snare no 3"],a:"Skream, Benga, Digital Mystikz, Burial, Loefah, Coki, Mala, Kode9, Pinch, Plastician, Gorgon City, Joy Orbison, Darkstar, Distance, Caspa, Rusko, N-Type, Chef",i:"UK Garage, Dub, Grime",o:"Brostep, Future Bass"},
+"Brostep":{f:"bass",c:"#cc8800",e:"2009–presente",yr:2009,d:"Versão americana do Dubstep. Wobble bass exagerado, drops explosivos, EDM festival.",b:[140,145],ch:["Wobble bass exagerado","Drop explosivo","Influência metal"],a:"Skrillex, Excision, Zomboy, Flux Pavilion, Datsik, Borgore",i:"Dubstep, Metal, Electro House",o:"Riddim, Wave"},
+"Grime":{f:"bass",c:"#bb9900",e:"2002–presente",yr:2002,d:"MC culture britânica sobre riddims eletrônicos. Velocidade, atitude, letras de rua.",b:[130,140],ch:["Riddim sincopado","MC flow","Sub-bass"],a:"Wiley, Dizzee Rascal, Skepta, JME, Stormzy, Lethal Bizzle, Kano, D Double E, Tinnie Tempah, Novelist, Giggs, Chip, P Money, Maxsta, Ghetts, Frisco, Jammer, Riko Dan",i:"UK Garage, Jungle, Hip-hop",o:"UK Drill, Afroswing"},
+"Future Bass":{f:"bass",c:"#ffa502",e:"2013–presente",yr:2013,d:"Eletrônica emocional com super-saws chorosos e drops suaves.",b:[130,160],ch:["Supersaw chords","Drop suave","Melodia emotiva"],a:"Flume, Odesza, Madeon, Porter Robinson, What So Not, San Holo, Illenium, Marshmello, Slushii, unlike pluto, Kasbo, Jai Wolf, Petit Biscuit, Galimatias, Medasin, Ta-ku",i:"Dubstep, EDM, Trap",o:"Melodic Bass"},
+"Trap Eletronico":{f:"bass",c:"#cc7700",e:"2012–presente",yr:2012,d:"Hip-hop trap encontra a música eletrônica. Hi-hat triplets, 808 bass, drops pesados.",b:[130,160],ch:["Hi-hat triplet","808 bass","Snare estourado"],a:"Flosstradamus, RL Grime, Baauer, Yellow Claw, UZ, Valentino Khan",i:"Trap hip-hop, Dubstep, EDM",o:"Future Trap, Wave"},
+"Organic House":{f:"house",c:"#c8a050",e:"2015–presente",yr:2015,d:"House com elementos orgânicos — instrumentos acústicos, sons da natureza, percussão étnica. Antídoto ao techno industrial.",b:[114,124],ch:["Instrumentos acústicos","Percussão étnica","Pad suave","Vocals etéreos","Groove suave"],a:"Nora En Pure, Fur Coat, Massano, Rodriguez Jr., Worakls, N'to, Monolink, Patrice Baumel, Tale of Us",i:"Deep House, Progressive House, Ambient",o:"Melodic House/Techno"},
+"Melodic Techno":{f:"techno",c:"#ff5555",e:"2016–presente",yr:2016,d:"Techno com alma melódica. Charlotte de Witte, Amelie Lens e a cena belga definiram o som. Drumcode e Afterlife como selos centrais.",b:[133,145],ch:["Kick duro","Melodia emotiva","Pad atmosférico","Drive constante","Energia crescente"],a:"Charlotte de Witte, Amelie Lens, Enrico Sangiuliano, Massano, Afterlife artists, I Hate Models, SPFDJ, Reinier Zonneveld, Alignment, Layton Giordani, Bart Skils",i:"Techno, Dark Techno, Trance",o:"Afterlife sound, Melodic House/Techno"},
+"Electroclash":{f:"synth",c:"#ff44bb",e:"1998–2006",yr:1998,d:"EBM + punk + new wave + moda. Irônico, provocativo, entre o underground e a passarela. Larry Tee cunhou o termo.",b:[125,140],ch:["EBM beat","Voz punk atitude","Synthpop melódico","Estética provocativa"],a:"Peaches, Fischerspooner, Miss Kittin, The Hacker, Adult., Chicks on Speed, Vitalic, Felix da Housecat",i:"EBM, Synth/EBM, New Wave, Punk",o:"Nu-Rave, Indie Dance"},
+"Indie Dance":{f:"pop",c:"#ee66bb",e:"2005–presente",yr:2005,d:"Cruzamento entre indie rock e música eletrônica de dança. Alternativo, dançante, entre o festival e o clube.",b:[118,130],ch:["Guitarra indie","Beat house","Melodia alternativa","Voz indie"],a:"LCD Soundsystem, !!! (Chk Chk Chk), Caribou, Hot Chip, Glass Animals, Metronomy, Django Django, MGMT",i:"New Wave, House, Indie Rock",o:"Nu-Disco, Electropop"},
+"Post-Dubstep":{f:"bass",c:"#ccaa00",e:"2009–presente",yr:2009,d:"Dubstep desconstruído, introspectivo e experimental. Menos dança, mais emoção e textura.",b:[128,140],ch:["Sub-bass sutil","Groove mínimo","Textura emocional","Voz etérea","Espaço"],a:"Burial, James Blake, Mount Kimbie, Actress, Darkstar, Arca, Kelela, FKA twigs, How to Dress Well",i:"Dubstep, IDM, R&B, Ambient",o:"UK Bass, Future Garage"},
+"Nu-Metal Eletronico":{f:"industrial",c:"#993300",e:"1999–2006",yr:1999,d:"Metal alternativo com forte produção eletrônica. Turntablism, samples e distorção pesada encontram o mainstream.",b:[100,150],ch:["Guitarra pesada","DJ scratch","Baixo drop afinado","Voz alternativa","Loops eletrônicos"],a:"Linkin Park, Korn, Limp Bizkit, Slipknot, Disturbed, Papa Roach, P.O.D.",i:"Industrial Metal, Hip-hop, Alternative Metal",o:"Metalcore, Rock alternativo"},
+"Psych Trance Brasil":{f:"trance",c:"#22cc66",e:"1994–presente",yr:1994,d:"O Brasil é um dos maiores mercados de psytrance do mundo. Festivais como Universo Paralello e uma cena própria de artistas.",b:[138,148],ch:["Kick acelerado","Bassline 16th","Samples tropicais","Energia rave ao ar livre"],a:"Alien Project, Psy-H Project, Skazi, Lucas Romagnoli, Ital, Headroom, Cosmo, Electrypnose",i:"Psytrance, Goa Trance",o:"Full-on brasileiro"},
+"Drone Ambient":{f:"ambient",c:"#334488",e:"1980–presente",yr:1980,d:"Fusão do minimalismo drone com texturas ambientes. Sons sustentados que evoluem lentamente ao longo de horas.",b:[0,30],ch:["Nota sustentada longa","Evolução micro-tonal","Field recordings","Ausência de ritmo","Volume como textura"],a:"Stars of the Lid, Tim Hecker, Grouper, Belong, Deaf Center, Kyle Bobby Dunn, William Basinski, Lawrence English",i:"Drone, Ambient, Minimalismo",o:"Dark Ambient"}
+};
+
+const CROSS=[
+  {s:"Acid House",t:"Trance",l:"TB-303 eufórico"},
+  {s:"Techno",t:"Trance",l:"estrutura 4/4"},
+  {s:"Jungle",t:"Drum & Bass",l:"evolução direta"},
+  {s:"Jungle",t:"Grime",l:"MC culture UK"},
+  {s:"Hardcore Rave",t:"Gabber",l:"extremismo"},
+  {s:"IDM",t:"Footwork/Juke",l:"fragmentação rítmica"},
+  {s:"Dub Techno",t:"Ambient",l:"textura/delay"},
+  {s:"Industrial",t:"Dark Techno",l:"peso/atmosfera"},
+  {s:"Trip-Hop",t:"Chillout",l:"downtempo feel"},
+  {s:"UK Garage",t:"Dubstep",l:"half-step evolução"},
+  {s:"Krautrock",t:"Techno",l:"motorik→groove"},
+  {s:"Musique Concrète",t:"IDM",l:"manipulação sonora"},
+  {s:"Psytrance",t:"Dark Psy",l:"escurecimento"},
+  {s:"Trance",t:"Hardstyle",l:"melodia épica"},
+  {s:"House",t:"Eurodance",l:"batida 4/4"},
+  {s:"Synthpop",t:"Futurepop",l:"voz+synth"},
+  {s:"Deep House",t:"Afro House",l:"introspection"},
+  {s:"Dubstep",t:"Future Bass",l:"evolução"},
+  {s:"Drum & Bass",t:"Halftime",l:"half-time feel"},
+  {s:"Synth/EBM",t:"Industrial",l:"agressão sonora"},
+  {s:"Electro",t:"House",l:"Chicago connection"},
+  {s:"Acid House",t:"Rave/Big Beat",l:"energia rave"}
+];
+
+const treeData={name:"MÚSICA\nELETRÔNICA",children:[
+  {name:"Musique Concrète",children:[
+    {name:"Modular/Experimental",children:[{name:"Chiptune",children:[]}]},
+    {name:"Drone",children:[{name:"Drone Ambient",children:[]}]}
+  ]},
+  {name:"Krautrock",children:[
+    {name:"Synth/EBM",children:[
+      {name:"Synthpop",children:[{name:"Futurepop",children:[]},{name:"Electropop",children:[]},{name:"Eurodance",children:[]}]},
+      {name:"Electroclash",children:[]},
+      {name:"New Wave",children:[{name:"Darkwave",children:[{name:"Witch House",children:[]}]}]},
+      {name:"Italo Disco",children:[{name:"Nu-Disco",children:[]},{name:"French House",children:[]}]}
+    ]}
+  ]},
+  {name:"Industrial",children:[
+    {name:"Power Electronics",children:[{name:"Noise",children:[]}]},
+    {name:"Aggrotech",children:[]},
+    {name:"Industrial Metal",children:[{name:"Nu-Metal Eletronico",children:[]}]}
+  ]},
+  {name:"Electro",children:[
+    {name:"Techno",children:[
+      {name:"Dark Techno",children:[]},
+      {name:"Melodic Techno",children:[]},
+      {name:"Acid Techno",children:[]},
+      {name:"Minimal Techno",children:[{name:"Dub Techno",children:[]}]},
+      {name:"Gabber",children:[{name:"Speedcore",children:[]},{name:"Hardstyle",children:[{name:"Rawstyle",children:[]}]}]}
+    ]},
+    {name:"House",children:[
+      {name:"Deep House",children:[{name:"Afro House",children:[]},{name:"Organic House",children:[]}]},
+      {name:"Tech House",children:[{name:"Melodic House/Techno",children:[]}]},
+      {name:"Acid House",children:[]},
+      {name:"Progressive House",children:[]},
+      {name:"UK Garage",children:[{name:"Dubstep",children:[{name:"Brostep",children:[]},{name:"Post-Dubstep",children:[]}]},{name:"Grime",children:[]}]},
+      {name:"EDM",children:[{name:"Future Bass",children:[]},{name:"Trap Eletronico",children:[]},{name:"Indie Dance",children:[]}]}
+    ]}
+  ]},
+  {name:"Trance",children:[
+    {name:"Uplifting Trance",children:[]},
+    {name:"Goa Trance",children:[{name:"Psytrance",children:[{name:"Dark Psy",children:[]},{name:"Psybient",children:[]},{name:"Psych Trance Brasil",children:[]}]}]}
+  ]},
+  {name:"Ambient",children:[
+    {name:"Dark Ambient",children:[]},
+    {name:"IDM",children:[{name:"Glitch",children:[]},{name:"Footwork/Juke",children:[]}]},
+    {name:"Chillout",children:[{name:"Trip-Hop",children:[]},{name:"Downtempo",children:[]},{name:"Vaporwave",children:[{name:"Lo-fi Hip-hop",children:[]}]}]}
+  ]},
+  {name:"Jungle",children:[{name:"Drum & Bass",children:[{name:"Neurofunk",children:[]},{name:"Liquid DnB",children:[]},{name:"Jump Up",children:[]},{name:"Halftime",children:[]}]}]},
+  {name:"Hardcore Rave",children:[{name:"Rave/Big Beat",children:[{name:"Breakbeat",children:[]}]},{name:"Happy Hardcore",children:[]}]}
+]};
+
+let curFam='all', showInfl=false, tZoom, nodePos={};
+
+function col(n){return G[n]?G[n].c:'#666';}
+function fam(n){return G[n]?G[n].f:'other';}
+
+function buildTree(){
+  nodePos={};
+  const el=document.getElementById('view-tree');
+  const W=el.clientWidth||900, H=el.clientHeight||600;
+  d3.select('#tree-svg').selectAll('*').remove();
+  const svg=d3.select('#tree-svg').attr('width',W).attr('height',H);
+
+  const root0=d3.hierarchy(treeData);
+  const leaves=root0.leaves().length;
+  const tH=Math.max(H*1.8,leaves*26), tW=Math.max(W*2,1400);
+
+  // defs
+  const defs=svg.append('defs');
+  const filt=defs.append('filter').attr('id','glow');
+  filt.append('feGaussianBlur').attr('stdDeviation','2.5').attr('result','coloredBlur');
+  const fm=filt.append('feMerge');
+  fm.append('feMergeNode').attr('in','coloredBlur');
+  fm.append('feMergeNode').attr('in','SourceGraphic');
+
+  const g=svg.append('g').attr('class','tree-root');
+  tZoom=d3.zoom().scaleExtent([0.12,4]).on('zoom',e=>g.attr('transform',e.transform));
+  svg.call(tZoom);
+
+  const root=d3.hierarchy(treeData);
+  d3.tree().size([tH,tW-240])(root);
+
+  root.descendants().forEach(d=>{nodePos[d.data.name]={x:d.y+16,y:d.x+24};});
+  // Center view on root node
+  const rootNode=root;
+  const rootX=rootNode.y+16, rootY=rootNode.x+24;
+  const sc=0.54;
+  svg.call(tZoom.transform, d3.zoomIdentity.translate(W*0.06 - rootX*sc, H/2 - rootY*sc).scale(sc));
+
+  // links
+  g.append('g').selectAll('path').data(root.links()).enter().append('path')
+    .attr('fill','none')
+    .attr('stroke',d=>{const n=d.target.data.name,show=curFam==='all'||fam(n)===curFam;return show?col(n)+'32':'#0d0d14';})
+    .attr('stroke-width',1.5)
+    .attr('d',d3.linkHorizontal().x(d=>d.y+16).y(d=>d.x+24));
+
+  // cross-influence layer
+  const inflG=g.append('g').attr('class','infl-layer').style('display',showInfl?'block':'none');
+  drawCross(inflG,defs);
+  // re-apply search highlight if active
+  if(activeSearch !== null) setTimeout(applySearchHighlight, 30);
+
+  // nodes
+  const node=g.append('g').selectAll('g').data(root.descendants()).enter().append('g')
+    .attr('transform',d=>`translate(${d.y+16},${d.x+24})`)
+    .style('opacity',d=>d.depth===0?1:(curFam==='all'||fam(d.data.name)===curFam)?1:0.07)
+    .on('click',(e,d)=>{if(d.depth>0&&G[d.data.name])openPanel(d.data.name);});
+
+  node.append('circle')
+    .attr('r',d=>d.depth===0?20:d.depth===1?13:d.depth===2?9:d.depth===3?7:5.5)
+    .attr('fill',d=>d.depth===0?'#0d0d1a':col(d.data.name)+'18')
+    .attr('stroke',d=>d.depth===0?'#00ffe7':col(d.data.name))
+    .attr('stroke-width',d=>d.depth===0?2:d.depth<=2?1.8:1.3)
+    .style('cursor',d=>d.depth>0?'pointer':'default')
+    .style('filter',d=>d.depth<=1?'url(#glow)':'none');
+
+  node.append('text')
+    .attr('dy','0.32em')
+    .attr('x',d=>d.depth===0?0:(d.children?-16:11))
+    .attr('text-anchor',d=>d.depth===0?'middle':(d.children?'end':'start'))
+    .attr('font-size',d=>d.depth===0?13:d.depth===1?14:d.depth===2?13:12)
+    .attr('font-weight',d=>d.depth<=1?'700':d.depth===2?'600':'400')
+    .attr('fill',d=>d.depth===0?'#00ffe7':col(d.data.name))
+    .style('cursor',d=>d.depth>0?'pointer':'default')
+    .each(function(d){
+      if(d.depth===0){const lines=d.data.name.split('\n'),el=d3.select(this);el.text('');lines.forEach((l,i)=>el.append('tspan').attr('x',0).attr('dy',i===0?`-${(lines.length-1)*5.5}px`:'12px').text(l));}
+      else d3.select(this).text(d.data.name);
+    });
+}
+
+function drawCross(container,defs){
+  container.selectAll('*').remove();
+  CROSS.forEach((inf,i)=>{
+    const s=nodePos[inf.s],t=nodePos[inf.t];
+    if(!s||!t) return;
+    const dx=t.x-s.x,dy=t.y-s.y,dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<5) return;
+    const mx=(s.x+t.x)/2,my=(s.y+t.y)/2,perp=90;
+    const nx=-dy/dist*perp,ny=dx/dist*perp;
+    const sc=G[inf.s]?G[inf.s].c:'#ff9f43',tc=G[inf.t]?G[inf.t].c:'#ff9f43';
+    const gid=`ig${i}`;
+    const gr=defs.append('linearGradient').attr('id',gid).attr('gradientUnits','userSpaceOnUse')
+      .attr('x1',s.x).attr('y1',s.y).attr('x2',t.x).attr('y2',t.y);
+    gr.append('stop').attr('offset','0%').attr('stop-color',sc).attr('stop-opacity',0.55);
+    gr.append('stop').attr('offset','100%').attr('stop-color',tc).attr('stop-opacity',0.55);
+    const mid=`am${i}`;
+    const mk=defs.append('marker').attr('id',mid).attr('viewBox','0 -4 8 8').attr('refX',6).attr('refY',0).attr('markerWidth',5).attr('markerHeight',5).attr('orient','auto');
+    mk.append('path').attr('d','M0,-4L8,0L0,4').attr('fill',tc).attr('opacity',0.7);
+    container.append('path')
+      .attr('d',`M${s.x},${s.y} Q${mx+nx},${my+ny} ${t.x},${t.y}`)
+      .attr('fill','none').attr('stroke',`url(#${gid})`).attr('stroke-width',1.4)
+      .attr('stroke-dasharray','5,3').attr('marker-end',`url(#${mid})`).attr('opacity',0.75)
+      .append('title').text(`${inf.s} → ${inf.t}: ${inf.l}`);
+  });
+}
+
+function toggleInfluences(){
+  showInfl=!showInfl;
+  const btn=document.getElementById('infl-toggle');
+  btn.classList.toggle('on',showInfl);
+  btn.textContent=showInfl?'⚡ Influências ON':'⚡ Influências Cruzadas';
+  d3.select('.infl-layer').style('display',showInfl?'block':'none');
+}
+function doZoom(f){d3.select('#tree-svg').transition().duration(280).call(tZoom.scaleBy,f);}
+function resetZoom(){
+  const el=document.getElementById('view-tree'),W=el.clientWidth||900,H=el.clientHeight||600;
+  d3.select('#tree-svg').transition().duration(400).call(tZoom.transform,d3.zoomIdentity.translate(60,H*0.5).scale(0.52));
+}
+
+
+function ff(f,btn){
+  curFam=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  buildTree();
+}
+
+function openPanel(name){
+  const g=G[name];if(!g) return;
+  document.getElementById('p-name').textContent=name;
+  document.getElementById('p-name').style.color=g.c;
+  document.getElementById('p-era').textContent=g.e;
+  document.getElementById('p-desc').textContent=g.d;
+  const mn=g.b[0],mx=g.b[1];
+  document.getElementById('p-bpm-label').textContent=mn===0&&mx===999?'Livre — sem BPM definido':mn===0?`Sem BPM fixo / até ${mx} BPM`:mx>=999?`${mn}+ BPM`:`${mn} – ${mx} BPM`;
+  const fill=document.getElementById('p-bpm-fill');
+  fill.style.width=Math.min(mn===0||mx>=999?12:Math.round(((mx-60)/200)*100),100)+'%';
+  fill.style.background=`linear-gradient(90deg,${g.c}66,${g.c})`;
+  document.getElementById('p-tags').innerHTML=g.ch.map(c=>`<span class="tag">${c}</span>`).join('');
+  document.getElementById('p-artists').textContent=g.a;
+  document.getElementById('p-infl').textContent=g.i;
+  document.getElementById('p-inflout').textContent=g.o||'—';
+  document.getElementById('panel').classList.add('open');
+}
+
+// ══════════════════════════════════════════════
+// ARTIST SEARCH
+// ══════════════════════════════════════════════
+let activeSearch = null; // list of genre names matching search
+
+function searchArtist(query) {
+  query = query.trim();
+  if (!query) { clearSearch(); return; }
+
+  const q = query.toLowerCase();
+  const matches = [];
+
+  Object.entries(G).forEach(([name, gd]) => {
+    // search in artist list (a field)
+    const artists = gd.a.toLowerCase();
+    if (artists.includes(q)) {
+      matches.push(name);
+    }
+  });
+
+  activeSearch = matches.length > 0 ? matches : [];
+
+  const resultsEl = document.getElementById('search-results');
+  const clearBtn = document.getElementById('search-clear');
+
+  if (matches.length > 0) {
+    resultsEl.innerHTML = `<span style="color:#00ffe7">✓</span> <span style="color:#aaa">${matches.length} gênero${matches.length>1?'s':''}: </span>` +
+      matches.map(m => `<span style="color:${G[m].c};font-weight:600">${m}</span>`).join(' · ');
+    clearBtn.style.display = 'inline-block';
+  } else {
+    resultsEl.innerHTML = `<span style="color:#664444">Artista não encontrado — tente outro nome</span>`;
+    clearBtn.style.display = 'inline-block';
+  }
+
+  applySearchHighlight();
+}
+
+function clearSearch() {
+  activeSearch = null;
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-results').innerHTML = '';
+  document.getElementById('search-clear').style.display = 'none';
+  applySearchHighlight();
+}
+
+function applySearchHighlight() {
+  if (!activeSearch) {
+    // restore normal opacity
+    d3.select('#tree-svg').selectAll('.nodes g')
+      .style('opacity', d => (!d||!d.data) ? 1 : d.depth === 0 ? 1 : (curFam === 'all' || fam(d.data.name) === curFam) ? 1 : 0.07);
+    d3.select('#tree-svg').selectAll('.nodes circle')
+      .attr('stroke-width', d => d.depth === 0 ? 2 : d.depth <= 2 ? 1.8 : 1.3)
+      .attr('r', d => d.depth===0?20:d.depth===1?13:d.depth===2?9:d.depth===3?7:5.5)
+      .style('filter', d => d.depth <= 1 ? 'url(#glow)' : 'none');
+    d3.select('#tree-svg').selectAll('.nodes text')
+      .style('font-weight', d => d.depth<=1?'700':d.depth===2?'600':'400');
+    return;
+  }
+
+  const matchSet = new Set(activeSearch);
+
+  d3.select('#tree-svg').selectAll('.nodes g')
+    .style('opacity', d => {
+      if (!d || !d.data) return 1;
+      if (d.depth === 0) return 1;
+      if (matchSet.has(d.data.name)) return 1;
+      return 0.06;
+    });
+
+  d3.select('#tree-svg').selectAll('.nodes circle')
+    .attr('r', d => {
+      if(!d||!d.data) return 5;
+      const base = d.depth===0?20:d.depth===1?13:d.depth===2?9:d.depth===3?7:5.5;
+      return matchSet.has(d.data.name) ? base * 1.9 : base;
+    })
+    .attr('stroke-width', d => (!d||!d.data)?1.3:matchSet.has(d.data.name) ? 3 : d.depth===0?2:d.depth<=2?1.8:1.3)
+    .style('filter', d => (!d||!d.data)?'none':matchSet.has(d.data.name) ? 'url(#glow)' : d.depth<=1?'url(#glow)':'none');
+
+  d3.select('#tree-svg').selectAll('.nodes text')
+    .style('font-weight', d => (!d||!d.data)?'400':matchSet.has(d.data.name) ? '800' : d.depth<=1?'700':d.depth===2?'600':'400')
+    .style('font-size', d => {
+      if(!d||!d.data) return '12px';
+      if (matchSet.has(d.data.name)) return '16px';
+      return d.depth===0?'13px':d.depth===1?'14px':d.depth===2?'13px':'12px';
+    });
+
+  // Auto-open panel if only one match
+  if (activeSearch.length === 1) {
+    openPanel(activeSearch[0]);
+  }
+}
+
+function closePanel(){document.getElementById('panel').classList.remove('open');}
+
+window.addEventListener('load',buildTree);
+window.addEventListener('resize',buildTree);
+// search highlight re-applied inside buildTree
+</script>
+</body>
+</html>
