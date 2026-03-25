@@ -2,7 +2,7 @@
 
 Mapa interativo de gêneros e subgêneros da música eletrônica, com artistas, características técnicas, BPM e influências cruzadas entre estilos.
 
-**[→ Ver online](https://valdirsjr.github.io/edmtree)**
+**[→ Ver online](https://valdirsjr.github.io/EDMtree)**
 
 ![screenshot](screenshot.png)
 
